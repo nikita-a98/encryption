@@ -30,61 +30,13 @@
   encode_couple/1,
   decode_couple/1,
   encode_polibiy/0,
-  decode_polibiy/0,
-
-  mask_polibiy/1
+  decode_polibiy/0
 ]).
 
 
 %% ===============================================================
 %% API functions
 %% ===============================================================
-encode_polibiy() ->
-  {ok, BinText} = file:read_file("../../files/file.txt"),
-  Text = string:lowercase(unicode:characters_to_list(BinText)),
-  Proplist = mask_polibiy(encode),
-  F1 =
-    fun
-      (X, Acc) ->
-        X1 = proplists:get_value(X, Proplist),
-        case X1 of
-          undefined -> Acc;
-          _ -> [list_to_binary(integer_to_list(X1)),?SPACE|Acc]
-        end
-    end,
-  EncrText = lists:foldr(F1, [], Text),
-  file:write_file(?ENCRYPTION_FILE, EncrText).
-
-decode_polibiy() ->
-  {ok, BinText} = file:read_file("../../files/encr_text.txt"),
-  Text = string:tokens(binary:bin_to_list(BinText), " "),
-%%  lists:map(
-%%    fun(X) ->
-%%      {Int, _} = string:to_integer(X),
-%%      Int
-%%    end, string:tokens(Text, " ")).
-  Proplist = encryption:mask_polibiy(decode),
-  F1 =
-    fun
-      (X, {Acc, _SpaceN = 0}) when X == "32" ->
-        {Acc, 1};
-      (X, {Acc, _SpaceN = 1}) when X == "32" ->
-        X1 = proplists:get_value(string:to_integer(X), Proplist),
-        case X1 of
-          undefined -> Acc;
-          _ -> {[X1|Acc], 0}
-        end;
-      (X, {Acc, SpaceN}) ->
-        X1 = proplists:get_value(string:to_integer(X), Proplist),
-        case X1 of
-          undefined -> {Acc, SpaceN};
-          _ -> {[X1|Acc], SpaceN}
-        end
-    end,
-  {DecrText, _} = lists:foldr(F1, {[], 0}, Text),
-  file:write_file(?DECRYPTION_FILE, DecrText).
-
-
 encode_cesar(Number) when Number =< ?MAX_INTERVAL ->
   {ok, BinText} = file:read_file("../../files/file.txt"),
   Text = string:lowercase(binary:bin_to_list(BinText)),
@@ -196,6 +148,40 @@ decode_couple(StringPhrase) ->
   DecrText = mask_couple(SortPhrase, Text),
   file:write_file(?DECRYPTION_FILE, unicode:characters_to_binary(DecrText)).
 
+
+encode_polibiy() ->
+  {ok, BinText} = file:read_file("../../files/file.txt"),
+  Text = string:lowercase(unicode:characters_to_list(BinText)),
+  Proplist = mask_polibiy(encode),
+  F1 =
+    fun
+      (X, Acc) ->
+        X1 = proplists:get_value(X, Proplist),
+        case X1 of
+          undefined -> Acc;
+          _ -> [list_to_binary(integer_to_list(X1)),?SPACE|Acc]
+        end
+    end,
+  EncrText = lists:foldr(F1, [], Text),
+  file:write_file(?ENCRYPTION_FILE, EncrText).
+
+decode_polibiy() ->
+  {ok, BinText} = file:read_file("../../files/encr_text.txt"),
+  Text = string:tokens(binary:bin_to_list(BinText), " "),
+  Proplist = encryption:mask_polibiy(decode),
+  F1 =
+    fun
+      (X, Acc) ->
+        {X1, _} = string:to_integer(X),
+        X2 = proplists:get_value(X1, Proplist),
+        case X2 of
+          undefined -> Acc;
+          _ -> [X2|Acc]
+        end
+    end,
+  DecrText = lists:foldr(F1, [], Text),
+  file:write_file(?DECRYPTION_FILE, unicode:characters_to_binary(DecrText)).
+
 %% ===============================================================
 %% Internal functions
 %% ===============================================================
@@ -248,27 +234,25 @@ mask_polibiy(V) ->
     lists:append([
       lists:seq(1072, 1103),
       [44,46,63,33,58,59,40,41,45],
-      lists:seq(48, 57)
+      lists:seq(48, 57),
+      [32]
     ]),
-  case V of
-    encode ->
-      F =
+  F =
+    case V of
+      encode ->
         fun
           (Sym, {N, Acc}) when Acc == 6 ->
             {{Sym, N+5}, {N+5, 1}};
           (Sym, {N, Acc}) ->
             {{Sym, N+1}, {N+1, Acc+1}}
-        end,
-      {Proplist, _} = lists:mapfoldl(F, {10, 0}, ListSym),
-      Proplist;
-    decode ->
-      F =
+        end;
+      decode ->
         fun
           (Sym, {N, Acc}) when Acc == 6 ->
             {{N+5, Sym}, {N+5, 1}};
           (Sym, {N, Acc}) ->
             {{N+1, Sym}, {N+1, Acc+1}}
-        end,
-      {Proplist, _} = lists:mapfoldl(F, {10, 0}, ListSym),
-      Proplist
-  end.
+        end
+    end,
+  {Proplist, _} = lists:mapfoldl(F, {10, 0}, ListSym),
+  Proplist.
