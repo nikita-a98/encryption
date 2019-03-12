@@ -168,7 +168,7 @@ encode_polibiy() ->
 decode_polibiy() ->
   {ok, BinText} = file:read_file("../../files/encr_text.txt"),
   Text = string:tokens(binary:bin_to_list(BinText), " "),
-  Proplist = encryption:mask_polibiy(decode),
+  Proplist = mask_polibiy(decode),
   F1 =
     fun
       (X, Acc) ->
