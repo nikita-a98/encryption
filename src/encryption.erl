@@ -186,7 +186,7 @@ decode_polibiy() ->
 
 encode_vernam(Key) ->
   {ok, BinText} = file:read_file("../../files/file.txt"),
-  Text = string:lowercase(unicode:characters_to_list(BinText)),
+  Text = string:trim(string:lowercase(unicode:characters_to_list(BinText))),
   Key1 = string:lowercase(unicode:characters_to_list(Key)),
   BitKey =
     lists:foldr(
@@ -199,7 +199,8 @@ encode_vernam(Key) ->
   F =
     fun
       (X, {AccIn, AccIn1}) ->
-        BitText = integer_to_list(X, 2),
+        BitText = string:right(integer_to_list(X, 2), 8, $0),
+        io:format("BitText ~p~n", [BitText]),
         {AccOut, KeyTailOut} =
           lists:foldl(
             fun(El, {Acc, KeyElIn}) ->
@@ -231,7 +232,7 @@ decode_vernam(Key) ->
   F =
     fun
       (X, {AccIn, AccIn1}) ->
-        BitText = integer_to_list(X, 2),
+        BitText = string:right(integer_to_list(X, 2), 8, $0),
         io:format("BitText ~p~n", [BitText]),
         {AccOut, KeyTailOut} =
           lists:foldl(
@@ -242,9 +243,12 @@ decode_vernam(Key) ->
               {Log ++ Acc, KeyTail}
             end, {[], BitKey}, BitText),
         io:format("AccOut ~p~n", [lists:reverse(AccOut)]),
+        io:format("AccIn ~p~n", [AccIn]),
         {[list_to_integer(AccOut, 2)|AccIn], [KeyTailOut|AccIn1]}
     end,
-  {BitDecrText, _} = lists:foldl(F, {[], []}, Text),
+  R = lists:foldl(F, {[], []}, Text),
+  io:format("FOLDL ~p~n", [R]),
+  {BitDecrText, _} = R,
   io:format("BitDecrText ~p~n", [BitDecrText]),
   file:write_file(?DECRYPTION_FILE, unicode:characters_to_binary(BitDecrText)).
 %% ===============================================================
