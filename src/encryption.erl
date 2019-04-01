@@ -204,22 +204,24 @@ encode_vernam(Key) ->
         {AccOut, KeyTailOut} =
           lists:foldl(
             fun(El, {Acc, KeyElIn}) ->
-              {KeyEl, KeyTail} = bit_key(KeyElIn, BitKey),
+              {KeyEl, KeyTail} = bit_key(KeyElIn, AccIn1, BitKey),
               Log = integer_to_list((El bxor KeyEl)),
               io:format("El ~p KeyEl ~p Log ~p Acc ~p ~n", [El, KeyEl, Log, Acc]),
               {Log ++ Acc, KeyTail}
-            end, {[], BitKey}, BitText),
+            end, {[], AccIn1}, BitText),
         io:format("AccOut ~p~n", [lists:reverse(AccOut)]),
-        {[list_to_integer(lists:reverse(AccOut), 2)|AccIn], [KeyTailOut|AccIn1]}
+        R = list_to_integer(lists:reverse(AccOut), 2),
+        {[<<R>>|AccIn], KeyTailOut}
     end,
-  {BitEncrText, _} = lists:foldl(F, {[], []}, Text),
+  {BitEncrText, _} = lists:foldl(F, {[], BitKey}, Text),
   io:format("BitEncrText ~p~n", [BitEncrText]),
-  file:write_file(?ENCRYPTION_FILE, unicode:characters_to_binary(BitEncrText)).
+  file:write_file(?ENCRYPTION_FILE, lists:reverse(BitEncrText)).
 
 %% not work
 decode_vernam(Key) ->
   {ok, BinText} = file:read_file("../../files/encr_text.txt"),
-  Text = string:lowercase(unicode:characters_to_list(BinText)),
+  Text = binary_to_list(BinText),
+  io:format("Text ~p~n",[Text]),
   Key1 = string:lowercase(unicode:characters_to_list(Key)),
   BitKey =
     lists:foldr(
@@ -232,33 +234,39 @@ decode_vernam(Key) ->
   F =
     fun
       (X, {AccIn, AccIn1}) ->
+        io:format("X ~p~n", [X]),
+        io:format("integer_to_list ~p~n", [integer_to_list(X, 2)]),
         BitText = string:right(integer_to_list(X, 2), 8, $0),
         io:format("BitText ~p~n", [BitText]),
         {AccOut, KeyTailOut} =
           lists:foldl(
             fun(El, {Acc, KeyElIn}) ->
-              {KeyEl, KeyTail} = bit_key(KeyElIn, BitKey),
+              {KeyEl, KeyTail} = bit_key(KeyElIn, AccIn1, BitKey),
               Log = integer_to_list((KeyEl bxor El)),
               io:format("El ~p KeyEl ~p Log ~p Acc ~p ~n", [El, KeyEl, Log, Acc]),
               {Log ++ Acc, KeyTail}
-            end, {[], BitKey}, BitText),
+            end, {[], AccIn1}, BitText),
         io:format("AccOut ~p~n", [lists:reverse(AccOut)]),
         io:format("AccIn ~p~n", [AccIn]),
-        {[list_to_integer(AccOut, 2)|AccIn], [KeyTailOut|AccIn1]}
+        R1 = list_to_integer(lists:reverse(AccOut), 2),
+        {[<<R1>>|AccIn], KeyTailOut}
     end,
-  R = lists:foldl(F, {[], []}, Text),
+  R = lists:foldl(F, {[], BitKey}, Text),
   io:format("FOLDL ~p~n", [R]),
   {BitDecrText, _} = R,
   io:format("BitDecrText ~p~n", [BitDecrText]),
-  file:write_file(?DECRYPTION_FILE, unicode:characters_to_binary(BitDecrText)).
+  file:write_file(?DECRYPTION_FILE, lists:reverse(BitDecrText)).
 %% ===============================================================
 %% Internal functions
 %% ===============================================================
 
-bit_key([], Key) ->
+bit_key(_, [], BitKey) ->
+  [H|Tail] = BitKey,
+  {H, Tail};
+bit_key([], Key, _BitKey) ->
   [H|Tail] = Key,
   {H, Tail};
-bit_key([H|Tail], _) ->
+bit_key([H|Tail], _, _BitKey) ->
   {H, Tail}.
 
 key_number([], Key) ->
