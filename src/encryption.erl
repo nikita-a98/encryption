@@ -314,14 +314,20 @@ decode_transp(Key) ->
   io:format("Text ~p~n",[Text]),
   Key1 = string:lowercase(unicode:characters_to_list(Key)),
   io:format("Key1 ~p~n",[Key1]),
-  Size = length(Key1),
-  io:format("Size ~p~n",[Size]),
+  KeySort = lists:sort(Key1),
+%%  Size = length(Key1),
+%%  SizeText = length(Text),
+%%  N = trunc(ceil(SizeText/Size)),
+%%  io:format("N ~p~n",[N]),
+%%  io:format("Size ~p~n",[Size]),
   F =
     fun
-      (Sym, {N, Acc}) when N == Size ->
-        {1, [{N, Sym} | Acc]};
+      (?SPACE, {_, Acc}) ->
+        {1, Acc};
+%%      (Sym, {N, Acc}) when N == Size ->
+%%        {1, [{N, Sym} | Acc]};
       (Sym, {N, Acc}) ->
-        {N+1, [{N, Sym} | Acc]}
+        {N+1, [{lists:nth(N, KeySort), Sym} | Acc]}
     end,
   {_, PrList} = lists:foldl(F, {1,[]}, Text),
   io:format("PrList ~p~n",[PrList]),
@@ -331,18 +337,17 @@ decode_transp(Key) ->
       (Sym, {N, Acc}) ->
         {N+1, [{Sym, N} | Acc]}
     end,
-  {_, PrList1} = lists:foldl(F1, {1,[]}, Key1),
+  {_, PrList1} = lists:foldl(F1, {1,[]}, lists:sort(Key1)),
   io:format("PrList1 ~p~n",[PrList1]),
-  SortKey = lists:sort(Key1),
-  io:format("SortKey ~p~n",[SortKey]),
+
 
   F2 =
     fun
       (Sym, Acc) ->
         Num = proplists:get_value(Sym, PrList1),
-        [proplists:get_all_values(Num, PrList)|Acc]
+        [lists:reverse(proplists:get_all_values(Num, PrList)) | Acc]
     end,
-  BitEncrText = lists:foldl(F2, [], SortKey),
+  BitEncrText = lists:foldl(F2, [], Key1),
   io:format("BitEncrText ~p~n", [BitEncrText]),
   file:write_file(?DECRYPTION_FILE, unicode:characters_to_binary(lists:append(BitEncrText))).
 
