@@ -267,15 +267,24 @@ encode_transp(Key) ->
   Key1 = string:lowercase(unicode:characters_to_list(Key)),
   io:format("Key1 ~p~n",[Key1]),
   Size = length(Key1),
+  SizeText = length(Text),
+  Text1 =
+    case trunc(Size * ceil(SizeText/Size) - SizeText) of
+      0 -> Text;
+      N -> lists:append([Text, lists:seq(?START_CYRILLIC_POSITION, ?START_CYRILLIC_POSITION+N)])
+    end,
+  io:format("Text1 ~p~n",[Text1]),
   io:format("Size ~p~n",[Size]),
   F =
     fun
+      (?SPACE, {N, Acc}) ->
+        {N, Acc};
       (Sym, {N, Acc}) when N == Size ->
         {1, [{N, Sym} | Acc]};
       (Sym, {N, Acc}) ->
         {N+1, [{N, Sym} | Acc]}
     end,
-  {_, PrList} = lists:foldl(F, {1,[]}, Text),
+  {_, PrList} = lists:foldl(F, {1,[]}, Text1),
   io:format("PrList ~p~n",[PrList]),
 
   F1 =
@@ -285,18 +294,18 @@ encode_transp(Key) ->
     end,
   {_, PrList1} = lists:foldl(F1, {1,[]}, Key1),
   io:format("PrList1 ~p~n",[PrList1]),
-  SortKey = lists:sort(Key1),
+  SortKey = lists:reverse(lists:sort(Key1)),
   io:format("SortKey ~p~n",[SortKey]),
 
   F2 =
     fun
       (Sym, Acc) ->
         Num = proplists:get_value(Sym, PrList1),
-        [proplists:get_all_values(Num, PrList)|Acc]
+        [[?SPACE] | [lists:reverse(proplists:get_all_values(Num, PrList)) | Acc]]
     end,
   BitEncrText = lists:foldl(F2, [], SortKey),
   io:format("BitEncrText ~p~n", [BitEncrText]),
-  file:write_file(?ENCRYPTION_FILE, lists:append(BitEncrText)).
+  file:write_file(?ENCRYPTION_FILE, unicode:characters_to_binary(lists:append(BitEncrText))).
 
 %% not work CHANGE LOGICs
 decode_transp(Key) ->
