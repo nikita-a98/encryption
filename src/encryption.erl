@@ -186,7 +186,6 @@ decode_polibiy() ->
   DecrText = lists:foldr(F1, [], Text),
   file:write_file(?DECRYPTION_FILE, unicode:characters_to_binary(DecrText)).
 
-%% not work with rus
 encode_vernam(Key) ->
   {ok, BinText} = file:read_file("../../files/file.txt"),
   Text = string:trim(string:lowercase(unicode:characters_to_list(BinText))),
@@ -220,7 +219,6 @@ encode_vernam(Key) ->
   io:format("BitEncrText ~p~n", [BitEncrText]),
   file:write_file(?ENCRYPTION_FILE, lists:reverse(BitEncrText)).
 
-%% not work with rus
 decode_vernam(Key) ->
   {ok, BinText} = file:read_file("../../files/encr_text.txt"),
   Text = unicode:characters_to_list(BinText),
@@ -271,7 +269,7 @@ encode_transp(Key) ->
   Text1 =
     case trunc(Size * ceil(SizeText/Size) - SizeText) of
       0 -> Text;
-      N -> lists:append([Text, lists:seq(?START_CYRILLIC_POSITION, ?START_CYRILLIC_POSITION+N)])
+      N -> lists:append([Text, lists:seq(?START_CYRILLIC_POSITION, ?START_CYRILLIC_POSITION+N-1)])
     end,
   io:format("Text1 ~p~n",[Text1]),
   io:format("Size ~p~n",[Size]),
@@ -286,7 +284,6 @@ encode_transp(Key) ->
     end,
   {_, PrList} = lists:foldl(F, {1,[]}, Text1),
   io:format("PrList ~p~n",[PrList]),
-
   F1 =
     fun
       (Sym, {N, Acc}) ->
@@ -296,7 +293,6 @@ encode_transp(Key) ->
   io:format("PrList1 ~p~n",[PrList1]),
   SortKey = lists:reverse(lists:sort(Key1)),
   io:format("SortKey ~p~n",[SortKey]),
-
   F2 =
     fun
       (Sym, Acc) ->
@@ -305,9 +301,10 @@ encode_transp(Key) ->
     end,
   BitEncrText = lists:foldl(F2, [], SortKey),
   io:format("BitEncrText ~p~n", [BitEncrText]),
+  io:format("Out ~p~n",[lists:append(BitEncrText)]),
+  io:format("Out1 ~p~n",[unicode:characters_to_binary(lists:append(BitEncrText))]),
   file:write_file(?ENCRYPTION_FILE, unicode:characters_to_binary(lists:append(BitEncrText))).
 
-%% not work CHANGE LOGICs
 decode_transp(Key) ->
   {ok, BinText} = file:read_file("../../files/encr_text.txt"),
   Text = string:trim(string:lowercase(unicode:characters_to_list(BinText))),
@@ -315,41 +312,25 @@ decode_transp(Key) ->
   Key1 = string:lowercase(unicode:characters_to_list(Key)),
   io:format("Key1 ~p~n",[Key1]),
   KeySort = lists:sort(Key1),
-%%  Size = length(Key1),
-%%  SizeText = length(Text),
-%%  N = trunc(ceil(SizeText/Size)),
-%%  io:format("N ~p~n",[N]),
-%%  io:format("Size ~p~n",[Size]),
   F =
     fun
-      (?SPACE, {_, Acc}) ->
-        {1, Acc};
-%%      (Sym, {N, Acc}) when N == Size ->
-%%        {1, [{N, Sym} | Acc]};
-      (Sym, {N, Acc}) ->
-        {N+1, [{lists:nth(N, KeySort), Sym} | Acc]}
+      (?SPACE, {{N, _}, Acc}) ->
+        {{N+1, 1}, Acc};
+      (Sym, {{N, NSt}, Acc}) ->
+        {{N, NSt+1}, [{{lists:nth(N, KeySort), NSt}, Sym} | Acc]}
     end,
-  {_, PrList} = lists:foldl(F, {1,[]}, Text),
+  {{_, S}, PrList} = lists:foldl(F, {{1,1},[]}, Text),
   io:format("PrList ~p~n",[PrList]),
-
-  F1 =
-    fun
-      (Sym, {N, Acc}) ->
-        {N+1, [{Sym, N} | Acc]}
-    end,
-  {_, PrList1} = lists:foldl(F1, {1,[]}, lists:sort(Key1)),
-  io:format("PrList1 ~p~n",[PrList1]),
-
-
   F2 =
     fun
       (Sym, Acc) ->
-        Num = proplists:get_value(Sym, PrList1),
-        [lists:reverse(proplists:get_all_values(Num, PrList)) | Acc]
+        [[proplists:get_value({El, Sym},PrList) || El <- Key1]|Acc]
     end,
-  BitEncrText = lists:foldl(F2, [], Key1),
+  BitEncrText = lists:foldl(F2, [], lists:seq(1,S-1)),
   io:format("BitEncrText ~p~n", [BitEncrText]),
-  file:write_file(?DECRYPTION_FILE, unicode:characters_to_binary(lists:append(BitEncrText))).
+  io:format("Out ~p~n",[unicode:characters_to_binary(lists:append(lists:reverse(BitEncrText)))]),
+  io:format("Out1 ~p~n",[lists:append(lists:reverse(BitEncrText))]),
+  file:write_file("../../files/decr_text.txt", unicode:characters_to_binary(lists:append(lists:reverse(BitEncrText)))).
 
 
 %% ===============================================================
